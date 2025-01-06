@@ -4,11 +4,7 @@
 
 Simple, small, and extremely fast template engine for Rust
 
-[![Tests](https://github.com/rust-sailfish/sailfish/workflows/Tests/badge.svg)](https://github.com/rust-sailfish/sailfish/actions?query=workflow%3ATests)
-[![Version](https://img.shields.io/crates/v/sailfish)](https://crates.io/crates/sailfish)
-[![dependency status](https://deps.rs/repo/github/rust-sailfish/sailfish/status.svg)](https://deps.rs/repo/github/rust-sailfish/sailfish)
-[![Rust 1.60](https://img.shields.io/badge/rust-1.60+-lightgray.svg)](https://blog.rust-lang.org/2022/04/07/Rust-1.60.0.html)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/rust-sailfish/sailfish/blob/master/LICENSE)
+![Tests](https://github.com/rust-sailfish/sailfish/workflows/Tests/badge.svg)![Version](https://img.shields.io/crates/v/sailfish)![dependency status](https://deps.rs/repo/github/rust-sailfish/sailfish/status.svg)![Rust 1.60](https://img.shields.io/badge/rust-1.60+-lightgray.svg)![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
 [User Guide](https://rust-sailfish.github.io/sailfish/) | [API Docs](https://docs.rs/sailfish) | [Examples](./examples)
 
@@ -31,39 +27,81 @@ Dependencies:
 
 ```toml
 [dependencies]
-sailfish = "0.8.3"
+sailfish = "0.9.0"
 ```
 
-Template file (templates/hello.stpl):
+You can choose to use `TemplateSimple` to access fields directly:
 
-```erb
-<html>
-  <body>
-    <% for msg in &messages { %>
-      <div><%= msg %></div>
-    <% } %>
-  </body>
-</html>
-```
+> Template file (templates/hello.stpl):
+>
+> ```erb
+> <html>
+>   <body>
+>     <% for msg in messages { %>
+>       <div><%= msg %></div>
+>     <% } %>
+>   </body>
+> </html>
+> ```
+>
+> Code:
+>
+> ```rust
+> use sailfish::TemplateSimple;
+> 
+> #[derive(TemplateSimple)]
+> #[template(path = "hello.stpl")]
+> struct HelloTemplate {
+>     messages: Vec<String>
+> }
+> 
+> fn main() {
+>     let ctx = HelloTemplate {
+>         messages: vec![String::from("foo"), String::from("bar")],
+>     };
+>     println!("{}", ctx.render_once().unwrap());
+> }
+> ```
 
-Code:
+Or use the more powerful `Template/TemplateMut/TemplateOnce`:
 
-```rust
-use sailfish::TemplateOnce;
-
-#[derive(TemplateOnce)]
-#[template(path = "hello.stpl")]
-struct HelloTemplate {
-    messages: Vec<String>
-}
-
-fn main() {
-    let ctx = HelloTemplate {
-        messages: vec![String::from("foo"), String::from("bar")],
-    };
-    println!("{}", ctx.render_once().unwrap());
-}
-```
+> Template file (templates/hello.stpl):
+>
+> ```erb
+> <html>
+>   <body>
+>     <% for msg in &self.messages { %>
+>       <div><%= msg %></div>
+>     <% } %>
+>     <div><%= self.say_hello() %></div>
+>   </body>
+> </html>
+> ```
+>
+> Code:
+>
+> ```rust
+> use sailfish::Template;
+> 
+> #[derive(Template)]
+> #[template(path = "hello.stpl")]
+> struct HelloTemplate {
+>     messages: Vec<String>
+> }
+> 
+> impl HelloTemplate {
+>     fn say_hello(&self) -> String {
+>         String::from("Hello!")
+>     }
+> }
+> 
+> fn main() {
+>     let ctx = HelloTemplate {
+>         messages: vec![String::from("foo"), String::from("bar")],
+>     };
+>     println!("{}", ctx.render().unwrap());
+> }
+> ```
 
 You can find more examples in [examples](./examples) directory.
 
@@ -96,5 +134,6 @@ Copyright © 2020 [Ryohei Machida](https://github.com/Kogia-sima).
 
 This project is [MIT](https://github.com/rust-sailfish/sailfish/blob/master/LICENSE) licensed.
 
-***
-_This README was generated with ❤️ by [readme-md-generator](https://github.com/kefranabg/readme-md-generator)_
+---
+
+*This README was generated with ❤️ by [readme-md-generator](https://github.com/kefranabg/readme-md-generator)*

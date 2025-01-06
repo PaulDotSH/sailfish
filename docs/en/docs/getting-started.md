@@ -29,13 +29,13 @@ templates/
 <ol><li>Import the sailfish crates:</li></ol>
 
 ```rust
-use sailfish::TemplateOnce;
+use sailfish::TemplateSimple;
 ```
 
 <ol start="2"><li>Define the template struct to be rendered:</li></ol>
 
 ```rust
-#[derive(TemplateOnce)]  // automatically implement `TemplateOnce` trait
+#[derive(TemplateSimple)]  // automatically implement `TemplateSimple` trait
 #[template(path = "hello.stpl")]  // specify the path to template
 struct HelloTemplate {
     // data to be passed to the template

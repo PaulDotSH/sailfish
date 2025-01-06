@@ -1,6 +1,6 @@
-use sailfish::TemplateOnce;
+use sailfish::TemplateSimple;
 
-#[derive(TemplateOnce)]
+#[derive(TemplateSimple)]
 #[template(path = "include.stpl")]
 struct Include {
     title: String,

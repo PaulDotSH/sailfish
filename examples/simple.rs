@@ -1,6 +1,6 @@
-use sailfish::TemplateOnce;
+use sailfish::TemplateSimple;
 
-#[derive(TemplateOnce)]
+#[derive(TemplateSimple)]
 #[template(path = "simple.stpl")]
 struct Simple {
     messages: Vec<String>,
