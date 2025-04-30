@@ -24,6 +24,7 @@ json = ["serde", "serde_json"]
 perf-inline = []
 
 [dependencies]
+criterion = "0.5.1"
 itoap = "1.0.1"
 ryu = "1.0.13"
 serde = { version = "1.0.159", optional = true }
@@ -41,3 +42,7 @@ version_check = "0.9.4"
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
+
+[[bench]]
+name = "regressions_benchmark"
+harness = false

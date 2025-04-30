@@ -1,0 +1,54 @@
+name: Performance Regression
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  performance-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+          profile: minimal
+
+      - name: Install Criterion.rs
+        run: cargo bench --no-run
+
+      - name: Run benchmarks and save results
+        run: |
+          mkdir -p ./results
+          cargo bench > ./results/benchmarks.txt
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v2
+        with:
+          name: benchmark-results
+          path: ./results
+
+      - name: Install cargo-benchcmp
+        run: cargo install --git https://github.com/BurntSushi/cargo-benchcmp.git
+
+      - name: Download previous benchmark results
+        uses: actions/download-artifact@v2
+        with:
+          name: benchmark-results
+
+      - name: Compare benchmarks
+        run: |
+          cargo benchcmp ./results/benchmarks.txt ./previous_results/benchmarks.txt
+
+      - name: Notify on regression
+        if: failure()
+        run: |
+          echo "Performance regression detected!"
