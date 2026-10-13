@@ -407,6 +407,29 @@ mod tests {
     }
 
     #[test]
+    fn string_conversion_keeps_allocation() {
+        // zero-capacity string has a dangling pointer
+        let mut buf = Buffer::from(String::new());
+        assert_eq!(buf.capacity(), 0);
+        buf.push_str("abc");
+        assert_eq!(buf.into_string(), "abc");
+
+        let mut s = String::with_capacity(64);
+        s.push_str("abc");
+        let ptr = s.as_ptr();
+
+        let mut buf = Buffer::from(s);
+        assert_eq!(buf.capacity(), 64);
+        buf.push_str("def");
+        assert_eq!(buf.as_mut_ptr() as *const u8, ptr);
+
+        let s = buf.into_string();
+        assert_eq!(s, "abcdef");
+        assert_eq!(s.capacity(), 64);
+        assert_eq!(s.as_ptr(), ptr);
+    }
+
+    #[test]
     fn from_str() {
         let buf = Buffer::from("abcdefgh");
         assert_eq!(buf.as_str(), "abcdefgh");

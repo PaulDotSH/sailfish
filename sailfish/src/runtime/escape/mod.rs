@@ -228,6 +228,27 @@ mod tests {
     }
 
     #[test]
+    fn first_escape_index_finds_first_escapable_byte() {
+        assert_eq!(first_escape_index(b""), None);
+        assert_eq!(first_escape_index(b"plain text"), None);
+        assert_eq!(
+            first_escape_index("漢字はエスケープしない".as_bytes()),
+            None
+        );
+        for &c in b"\"&'<>" {
+            assert_eq!(first_escape_index(&[c]), Some(0));
+        }
+
+        // positions inside the first chunk, at a chunk boundary, and in the remainder
+        for pos in [0, 5, 31, 32, 40, 63, 64, 70] {
+            let mut bytes = vec![b'a'; 72];
+            bytes[pos] = b'<';
+            bytes[71] = b'&';
+            assert_eq!(first_escape_index(&bytes), Some(pos));
+        }
+    }
+
+    #[test]
     #[rustfmt::skip]
     fn escape_long() {
         assert_eq!(

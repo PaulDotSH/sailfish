@@ -571,6 +571,61 @@ mod tests {
         assert_eq!(b.as_str(), "10-20");
     }
 
+    struct OnlyRender<'a>(&'a str);
+
+    impl Render for OnlyRender<'_> {
+        fn render(&self, b: &mut Buffer) -> Result<(), RenderError> {
+            b.push_str(self.0);
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn default_render_escaped() {
+        let mut b = Buffer::new();
+        b.push_str("<pre>");
+
+        OnlyRender("plain").render_escaped(&mut b).unwrap();
+        OnlyRender("").render_escaped(&mut b).unwrap();
+        OnlyRender("a < b & 'c' > \"d\"")
+            .render_escaped(&mut b)
+            .unwrap();
+        assert_eq!(
+            b.as_str(),
+            "<pre>plaina &lt; b &amp; &#039;c&#039; &gt; &quot;d&quot;"
+        );
+        b.clear();
+
+        // contents after the first escapable byte are copied to the stack when they
+        // fit in 256 bytes, and to the heap otherwise
+        for tail_len in [100, 255, 256, 257, 1000] {
+            b.clear();
+            let long = "x".repeat(100) + "<" + &"y".repeat(tail_len - 1);
+            OnlyRender(&long).render_escaped(&mut b).unwrap();
+            assert_eq!(
+                b.as_str(),
+                "x".repeat(100) + "&lt;" + &"y".repeat(tail_len - 1)
+            );
+        }
+    }
+
+    #[test]
+    fn default_render_escaped_discards_contents_on_error() {
+        struct Fails;
+
+        impl Render for Fails {
+            fn render(&self, b: &mut Buffer) -> Result<(), RenderError> {
+                b.push_str("<script>");
+                Err(RenderError::new("failed"))
+            }
+        }
+
+        let mut b = Buffer::new();
+        b.push_str("before");
+        assert!(Fails.render_escaped(&mut b).is_err());
+        assert_eq!(b.as_str(), "before");
+    }
+
     #[test]
     fn render_error() {
         let err = RenderError::new("custom error");
