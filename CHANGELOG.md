@@ -11,6 +11,8 @@
   The serialized text changes, but the decoded JSON values are preserved.
 * The default `Render::render_escaped` implementation discards partially
   rendered, unescaped contents when `render` fails
+* Debug assertions in the SSE2 and AVX2 escapers no longer offset a pointer
+  past the end of the input
 
 ### Performance
 
@@ -20,6 +22,16 @@
 * `upper` and `lower` filters convert ASCII contents in place without allocating
 * `Buffer::from(String)` keeps the string's capacity instead of shrinking it,
   which also speeds up `escape_to_string`
+* HTML escaping is faster: values shorter than 16 bytes without escapable
+  characters are copied in one go, longer values are copied block by block as
+  they are scanned instead of in a second pass (64 bytes at a time with AVX2,
+  32 with SSE2 and 16 without SIMD), and escape-heavy values write their output
+  directly
+* The default `Render::render_escaped` implementation checks contents without
+  escapable characters faster, and no longer zeroes a stack buffer before
+  escaping
+* `truncate` filter skips decoding characters when the contents are no longer
+  than the limit or start with an ASCII prefix of that length
 
 ### Breaking Change
 

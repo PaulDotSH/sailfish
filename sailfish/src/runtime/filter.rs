@@ -418,7 +418,18 @@ fn truncate_impl(
 ) -> Result<(), RenderError> {
     let new_contents = b.as_str().get(old_len..).ok_or(RenderError::BufSize)?;
 
-    if let Some(idx) = new_contents.char_indices().nth(limit).map(|(i, _)| i) {
+    // a string never has more chars than bytes, and in an ASCII prefix every
+    // byte is a char, so both cases skip decoding char by char
+    let bytes = new_contents.as_bytes();
+    let idx = if bytes.len() <= limit {
+        None
+    } else if bytes[..limit].is_ascii() {
+        Some(limit)
+    } else {
+        new_contents.char_indices().nth(limit).map(|(i, _)| i)
+    };
+
+    if let Some(idx) = idx {
         unsafe { b._set_len(old_len.wrapping_add(idx)) };
         b.push_str("...");
     }
@@ -776,6 +787,12 @@ mod tests {
         assert_render(&truncate("魑魅魍魎", 3), "魑魅魍...");
         assert_render(&truncate("魑魅魍魎", 4), "魑魅魍魎");
         assert_render(&truncate("魑魅魍魎", 5), "魑魅魍魎");
+
+        // ascii prefix followed by non-ascii
+        assert_render(&truncate("ab魑魅", 2), "ab...");
+        assert_render(&truncate("ab魑魅", 3), "ab魑...");
+        assert_render(&truncate("ab魑魅", 4), "ab魑魅");
+        assert_render(&truncate("魑ab", 2), "魑a...");
     }
 
     #[cfg(feature = "json")]

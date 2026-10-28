@@ -1,12 +1,15 @@
 use std::borrow::Cow;
 use std::cell::{Ref, RefMut};
 use std::fmt;
+use std::mem::MaybeUninit;
 use std::num::{
     NonZeroI128, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI8, NonZeroIsize,
     NonZeroU128, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU8, NonZeroUsize, Wrapping,
 };
 use std::path::{Path, PathBuf};
+use std::ptr;
 use std::rc::Rc;
+use std::slice;
 use std::sync::{Arc, MutexGuard, RwLockReadGuard, RwLockWriteGuard};
 
 use super::buffer::Buffer;
@@ -71,35 +74,50 @@ pub(crate) fn render_or_discard(
 fn escape_rendered(b: &mut Buffer, start: usize) -> Result<(), RenderError> {
     let rendered = b.as_str().get(start..).ok_or(RenderError::BufSize)?;
 
-    let Some(idx) = escape::first_escape_index(rendered.as_bytes()) else {
-        return Ok(());
-    };
+    if let Some(idx) = escape::first_escape_index(rendered.as_bytes()) {
+        // SAFETY: the byte at `start + idx` needs escaping, so it is ASCII
+        unsafe { escape_rendered_from(b, start + idx) };
+    }
+    Ok(())
+}
+
+/// HTML-escapes the contents of `b` from `start` onwards
+///
+/// Kept out of line so that contents without escapable characters skip the
+/// stack copy's setup.
+///
+/// # Safety
+///
+/// `start` must be less than `b.len()`, at an ASCII byte
+#[inline(never)]
+unsafe fn escape_rendered_from(b: &mut Buffer, start: usize) {
+    debug_assert!(b.as_str().as_bytes().get(start).is_some_and(u8::is_ascii));
 
     // The escaper cannot read from the buffer it writes to, so copy out the
-    // contents from the first escapable byte onwards. Short contents are copied
-    // to the stack to avoid allocating.
+    // contents. Short contents are copied to the stack to avoid allocating.
     const STACK_LEN: usize = 256;
-    let tail = &rendered[idx..];
+    // SAFETY: `start` is a char boundary, as the byte there is ASCII
+    let tail = unsafe { b.as_str().get_unchecked(start..) };
     let tail_len = tail.len();
 
     if tail_len <= STACK_LEN {
-        let mut stack = [0u8; STACK_LEN];
-        stack[..tail_len].copy_from_slice(tail.as_bytes());
-
-        // SAFETY: `start + idx < b.len()`
-        unsafe { b._set_len(start + idx) };
-        // SAFETY: the bytes were copied from a `str`, starting at an ASCII byte
-        let tail = unsafe { std::str::from_utf8_unchecked(&stack[..tail_len]) };
-        escape::escape_to_buf(tail, b);
+        let mut stack = [MaybeUninit::<u8>::uninit(); STACK_LEN];
+        // SAFETY: the first `tail_len` bytes of `stack` are initialized with a
+        // copy of `tail`, which is valid UTF-8, before being read
+        unsafe {
+            let stack = stack.as_mut_ptr() as *mut u8;
+            ptr::copy_nonoverlapping(tail.as_ptr(), stack, tail_len);
+            b._set_len(start);
+            let tail = slice::from_raw_parts(stack, tail_len);
+            escape::escape_tail_to_buf(std::str::from_utf8_unchecked(tail), b);
+        }
     } else {
         let tail = tail.to_owned();
 
-        // SAFETY: `start + idx < b.len()`
-        unsafe { b._set_len(start + idx) };
-        escape::escape_to_buf(&tail, b);
+        // SAFETY: `start < b.len()`
+        unsafe { b._set_len(start) };
+        escape::escape_tail_to_buf(&tail, b);
     }
-
-    Ok(())
 }
 
 // /// Autoref-based stable specialization
